@@ -2,6 +2,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { UsersService } from 'src/users/users.service';
 import { JwtService } from '@nestjs/jwt';
+import posthog from '../posthog';
 
 @Injectable()
 export class AuthService {
@@ -22,7 +23,27 @@ export class AuthService {
         const { password, ...result } = user;
         return result;
       }
+
+      posthog.capture({
+        distinctId: email,
+        event: 'login failed',
+        properties: {
+          email,
+          reason: 'invalid_credentials',
+        },
+      });
+
+      return null;
     } catch (error) {
+      posthog.captureException(error, email, { email });
+      posthog.capture({
+        distinctId: email,
+        event: 'login failed',
+        properties: {
+          email,
+          reason: 'user_not_found',
+        },
+      });
       return null;
     }
   }
